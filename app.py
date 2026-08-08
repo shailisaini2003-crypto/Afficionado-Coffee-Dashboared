@@ -2,46 +2,63 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# -----------------------------
+
+# -------------------------------------------------
 # PAGE CONFIGURATION
-# -----------------------------
+# -------------------------------------------------
+
 st.set_page_config(
     page_title="Afficionado Coffee Roasters Dashboard",
     page_icon="☕",
     layout="wide"
 )
 
-# -----------------------------
+
+# -------------------------------------------------
 # TITLE
-# -----------------------------
+# -------------------------------------------------
+
 st.title("☕ Afficionado Coffee Roasters")
 st.subheader("Sales Trend and Time-Based Performance Analysis")
 
 st.write(
     "Interactive dashboard for analyzing sales performance, "
-    "peak transaction hours, time slots, store locations and product categories."
+    "peak transaction hours, time slots, store locations "
+    "and product categories."
 )
 
-# -----------------------------
+
+# -------------------------------------------------
 # LOAD DATA
-# -----------------------------
+# -------------------------------------------------
+
 FILE_NAME = "Coffee_Sales_Analysis new file.xlsx"
 
 try:
-    df = pd.read_excel(FILE_NAME, sheet_name="Transactions")
+    df = pd.read_excel(
+        FILE_NAME,
+        sheet_name="Transactions"
+    )
 except Exception as e:
     st.error("Dataset could not be loaded.")
-    st.write("Make sure the Excel file is uploaded in the same GitHub repository.")
+    st.write(
+        "Make sure the Excel file is uploaded in the same "
+        "GitHub repository."
+    )
     st.stop()
 
-# -----------------------------
+
+# -------------------------------------------------
 # CLEAN COLUMN NAMES
-# -----------------------------
+# -------------------------------------------------
+
 df.columns = df.columns.str.strip()
 
-# -----------------------------
+
+# -------------------------------------------------
 # REQUIRED COLUMNS
-# -----------------------------
+# -------------------------------------------------
+
 required_columns = [
     "transaction_id",
     "transaction_qty",
@@ -63,24 +80,42 @@ if missing_columns:
     st.write(missing_columns)
     st.stop()
 
-# -----------------------------
+
+# -------------------------------------------------
 # DATA TYPES
-# -----------------------------
-df["Sales"] = pd.to_numeric(df["Sales"], errors="coerce")
-df["transaction_qty"] = pd.to_numeric(
-    df["transaction_qty"], errors="coerce"
+# -------------------------------------------------
+
+df["Sales"] = pd.to_numeric(
+    df["Sales"],
+    errors="coerce"
 )
-df["Hour"] = pd.to_numeric(df["Hour"], errors="coerce")
 
-df = df.dropna(subset=["Sales", "Hour"])
+df["transaction_qty"] = pd.to_numeric(
+    df["transaction_qty"],
+    errors="coerce"
+)
 
-# -----------------------------
+df["Hour"] = pd.to_numeric(
+    df["Hour"],
+    errors="coerce"
+)
+
+df = df.dropna(
+    subset=["Sales", "Hour"]
+)
+
+
+# -------------------------------------------------
 # SIDEBAR FILTERS
-# -----------------------------
+# -------------------------------------------------
+
 st.sidebar.header("🔎 Filters")
 
-# Store filter
-stores = sorted(df["store_location"].dropna().unique())
+
+# Store Location
+stores = sorted(
+    df["store_location"].dropna().unique()
+)
 
 selected_stores = st.sidebar.multiselect(
     "Store Location",
@@ -88,8 +123,11 @@ selected_stores = st.sidebar.multiselect(
     default=stores
 )
 
-# Time slot filter
-time_slots = sorted(df["Time Slot"].dropna().unique())
+
+# Time Slot
+time_slots = sorted(
+    df["Time Slot"].dropna().unique()
+)
 
 selected_time_slots = st.sidebar.multiselect(
     "Time Slot",
@@ -97,7 +135,8 @@ selected_time_slots = st.sidebar.multiselect(
     default=time_slots
 )
 
-# Product category filter
+
+# Product Category
 categories = sorted(
     df["product_category"].dropna().unique()
 )
@@ -108,28 +147,47 @@ selected_categories = st.sidebar.multiselect(
     default=categories
 )
 
-# Apply filters
+
+# -------------------------------------------------
+# APPLY FILTERS
+# -------------------------------------------------
+
 filtered_df = df[
-    (df["store_location"].isin(selected_stores)) &
-    (df["Time Slot"].isin(selected_time_slots)) &
+    (df["store_location"].isin(selected_stores))
+    &
+    (df["Time Slot"].isin(selected_time_slots))
+    &
     (df["product_category"].isin(selected_categories))
 ]
 
-# -----------------------------
+
+# -------------------------------------------------
 # KPI SECTION
-# -----------------------------
+# -------------------------------------------------
+
 st.markdown("## 📊 Key Performance Indicators")
 
 col1, col2, col3, col4 = st.columns(4)
 
+
 total_sales = filtered_df["Sales"].sum()
-total_transactions = filtered_df["transaction_id"].nunique()
-total_quantity = filtered_df["transaction_qty"].sum()
+
+total_transactions = (
+    filtered_df["transaction_id"].nunique()
+)
+
+total_quantity = (
+    filtered_df["transaction_qty"].sum()
+)
+
 
 if total_transactions > 0:
-    average_transaction = total_sales / total_transactions
+    average_transaction = (
+        total_sales / total_transactions
+    )
 else:
     average_transaction = 0
+
 
 col1.metric(
     "💰 Total Sales",
@@ -151,17 +209,23 @@ col4.metric(
     f"${average_transaction:,.2f}"
 )
 
-# -----------------------------
+
+# -------------------------------------------------
 # SALES BY HOUR
-# -----------------------------
+# -------------------------------------------------
+
 st.markdown("## ⏰ Sales by Hour")
 
 hour_sales = (
     filtered_df
-    .groupby("Hour", as_index=False)["Sales"]
+    .groupby(
+        "Hour",
+        as_index=False
+    )["Sales"]
     .sum()
     .sort_values("Hour")
 )
+
 
 fig_hour = px.line(
     hour_sales,
@@ -181,16 +245,21 @@ st.plotly_chart(
     use_container_width=True
 )
 
-# -----------------------------
+
+# -------------------------------------------------
 # PEAK HOUR
-# -----------------------------
+# -------------------------------------------------
+
 if not hour_sales.empty:
 
     peak_hour_row = hour_sales.loc[
         hour_sales["Sales"].idxmax()
     ]
 
-    peak_hour = int(peak_hour_row["Hour"])
+    peak_hour = int(
+        peak_hour_row["Hour"]
+    )
+
     peak_sales = peak_hour_row["Sales"]
 
     st.success(
@@ -198,17 +267,26 @@ if not hour_sales.empty:
         f"with sales of ${peak_sales:,.2f}"
     )
 
-# -----------------------------
+
+# -------------------------------------------------
 # TIME SLOT ANALYSIS
-# -----------------------------
+# -------------------------------------------------
+
 st.markdown("## 🕒 Sales by Time Slot")
 
 slot_sales = (
     filtered_df
-    .groupby("Time Slot", as_index=False)["Sales"]
+    .groupby(
+        "Time Slot",
+        as_index=False
+    )["Sales"]
     .sum()
-    .sort_values("Sales", ascending=False)
+    .sort_values(
+        "Sales",
+        ascending=False
+    )
 )
+
 
 fig_slot = px.bar(
     slot_sales,
@@ -228,17 +306,26 @@ st.plotly_chart(
     use_container_width=True
 )
 
-# -----------------------------
+
+# -------------------------------------------------
 # STORE LOCATION ANALYSIS
-# -----------------------------
+# -------------------------------------------------
+
 st.markdown("## 📍 Store Location Performance")
 
 store_sales = (
     filtered_df
-    .groupby("store_location", as_index=False)["Sales"]
+    .groupby(
+        "store_location",
+        as_index=False
+    )["Sales"]
     .sum()
-    .sort_values("Sales", ascending=False)
+    .sort_values(
+        "Sales",
+        ascending=False
+    )
 )
+
 
 fig_store = px.bar(
     store_sales,
@@ -258,17 +345,26 @@ st.plotly_chart(
     use_container_width=True
 )
 
-# -----------------------------
-# CATEGORY ANALYSIS
-# -----------------------------
+
+# -------------------------------------------------
+# PRODUCT CATEGORY ANALYSIS
+# -------------------------------------------------
+
 st.markdown("## 🥐 Product Category Performance")
 
 category_sales = (
     filtered_df
-    .groupby("product_category", as_index=False)["Sales"]
+    .groupby(
+        "product_category",
+        as_index=False
+    )["Sales"]
     .sum()
-    .sort_values("Sales", ascending=False)
+    .sort_values(
+        "Sales",
+        ascending=False
+    )
 )
+
 
 fig_category = px.pie(
     category_sales,
@@ -282,18 +378,27 @@ st.plotly_chart(
     use_container_width=True
 )
 
-# -----------------------------
-# TOP PRODUCTS
-# -----------------------------
+
+# -------------------------------------------------
+# TOP 10 PRODUCTS
+# -------------------------------------------------
+
 st.markdown("## 🏆 Top 10 Products")
 
 top_products = (
     filtered_df
-    .groupby("product_detail", as_index=False)["Sales"]
+    .groupby(
+        "product_detail",
+        as_index=False
+    )["Sales"]
     .sum()
-    .sort_values("Sales", ascending=False)
+    .sort_values(
+        "Sales",
+        ascending=False
+    )
     .head(10)
 )
+
 
 fig_product = px.bar(
     top_products.sort_values("Sales"),
@@ -314,19 +419,25 @@ st.plotly_chart(
     use_container_width=True
 )
 
-# -----------------------------
-# STORE + TIME SLOT
-# -----------------------------
+
+# -------------------------------------------------
+# STORE + TIME SLOT ANALYSIS
+# -------------------------------------------------
+
 st.markdown("## 📍 Store vs Time Slot")
 
 store_slot = (
     filtered_df
     .groupby(
-        ["store_location", "Time Slot"],
+        [
+            "store_location",
+            "Time Slot"
+        ],
         as_index=False
     )["Sales"]
     .sum()
 )
+
 
 fig_store_slot = px.bar(
     store_slot,
@@ -342,9 +453,11 @@ st.plotly_chart(
     use_container_width=True
 )
 
-# -----------------------------
-# DATA TABLE
-# -----------------------------
+
+# -------------------------------------------------
+# FILTERED DATA TABLE
+# -------------------------------------------------
+
 st.markdown("## 📋 Filtered Transaction Data")
 
 st.dataframe(
@@ -352,9 +465,11 @@ st.dataframe(
     use_container_width=True
 )
 
-# -----------------------------
+
+# -------------------------------------------------
 # FOOTER
-# -----------------------------
+# -------------------------------------------------
+
 st.markdown("---")
 
 st.caption(
