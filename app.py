@@ -32,7 +32,7 @@ st.write(
 # LOAD DATA
 # -------------------------------------------------
 
-FILE_NAME = "Afficionado_Coffee_Roasters_Final.xslx"
+FILE_NAME = "Afficionado_Coffee_Roasters_Final.xlsx"
 
 try:
     df = pd.read_excel(
