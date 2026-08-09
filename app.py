@@ -20,9 +20,9 @@ st.title("☕ Afficionado Coffee Roasters")
 st.subheader("Sales Trend and Time-Based Performance Analysis")
 
 st.write(
-    "Interactive dashboard for analyzing sales performance, "
-    "peak transaction hours, time buckets, store locations "
-    "and product categories."
+    "Interactive dashboard for analyzing revenue performance, "
+    "transaction hours, time buckets, store locations and "
+    "product categories."
 )
 
 # =========================================================
@@ -38,17 +38,17 @@ try:
     )
 except Exception as e:
     st.error("Dataset could not be loaded.")
-    st.error(f"Actual error: {e}")
+    st.error(f"Error: {e}")
     st.stop()
 
 # =========================================================
 # CLEAN COLUMN NAMES
 # =========================================================
 
-df.columns = df.columns.astype(str).str.strip()
+df.columns = df.columns.str.strip()
 
 # =========================================================
-# CHECK REQUIRED COLUMNS
+# REQUIRED COLUMNS
 # =========================================================
 
 required_columns = [
@@ -57,8 +57,8 @@ required_columns = [
     "store_location",
     "product_category",
     "product_detail",
-    "revenue",
     "hour",
+    "revenue",
     "time_bucket"
 ]
 
@@ -68,10 +68,8 @@ missing_columns = [
 ]
 
 if missing_columns:
-    st.error("Required columns are missing from Transactions sheet:")
+    st.error("Missing columns in Transactions sheet:")
     st.write(missing_columns)
-    st.write("Available columns:")
-    st.write(list(df.columns))
     st.stop()
 
 # =========================================================
@@ -98,24 +96,14 @@ df = df.dropna(
 )
 
 # =========================================================
-# USER-FRIENDLY COLUMN NAMES
-# =========================================================
-
-df["Sales"] = df["revenue"]
-df["Hour"] = df["hour"]
-df["Time Slot"] = df["time_bucket"]
-
-# =========================================================
 # SIDEBAR FILTERS
 # =========================================================
 
 st.sidebar.header("🔎 Filters")
 
-# Store filter
+# Store Location
 stores = sorted(
-    df["store_location"]
-    .dropna()
-    .unique()
+    df["store_location"].dropna().unique()
 )
 
 selected_stores = st.sidebar.multiselect(
@@ -124,24 +112,20 @@ selected_stores = st.sidebar.multiselect(
     default=stores
 )
 
-# Time bucket filter
-time_slots = sorted(
-    df["Time Slot"]
-    .dropna()
-    .unique()
+# Time Bucket
+time_buckets = list(
+    df["time_bucket"].dropna().unique()
 )
 
-selected_time_slots = st.sidebar.multiselect(
+selected_time_buckets = st.sidebar.multiselect(
     "Time Bucket",
-    time_slots,
-    default=time_slots
+    time_buckets,
+    default=time_buckets
 )
 
-# Product category filter
+# Product Category
 categories = sorted(
-    df["product_category"]
-    .dropna()
-    .unique()
+    df["product_category"].dropna().unique()
 )
 
 selected_categories = st.sidebar.multiselect(
@@ -157,7 +141,7 @@ selected_categories = st.sidebar.multiselect(
 filtered_df = df[
     (df["store_location"].isin(selected_stores))
     &
-    (df["Time Slot"].isin(selected_time_slots))
+    (df["time_bucket"].isin(selected_time_buckets))
     &
     (df["product_category"].isin(selected_categories))
 ]
@@ -170,26 +154,22 @@ st.markdown("## 📊 Key Performance Indicators")
 
 col1, col2, col3, col4 = st.columns(4)
 
-total_sales = filtered_df["Sales"].sum()
+total_revenue = filtered_df["revenue"].sum()
 
-total_transactions = (
-    filtered_df["transaction_id"].nunique()
-)
+total_transactions = filtered_df["transaction_id"].nunique()
 
-total_quantity = (
-    filtered_df["transaction_qty"].sum()
-)
+total_quantity = filtered_df["transaction_qty"].sum()
 
 if total_transactions > 0:
     average_transaction = (
-        total_sales / total_transactions
+        total_revenue / total_transactions
     )
 else:
     average_transaction = 0
 
 col1.metric(
     "💰 Total Revenue",
-    f"${total_sales:,.2f}"
+    f"${total_revenue:,.2f}"
 )
 
 col2.metric(
@@ -198,7 +178,7 @@ col2.metric(
 )
 
 col3.metric(
-    "📦 Total Quantity",
+    "📦 Total Quantity Sold",
     f"{total_quantity:,.0f}"
 )
 
@@ -208,24 +188,24 @@ col4.metric(
 )
 
 # =========================================================
-# HOURLY ANALYSIS
+# REVENUE BY HOUR
 # =========================================================
 
-st.markdown("## ⏰ Hourly Analysis")
+st.markdown("## ⏰ Revenue by Hour")
 
-hour_sales = (
+hour_revenue = (
     filtered_df
-    .groupby("Hour", as_index=False)["Sales"]
+    .groupby("hour", as_index=False)["revenue"]
     .sum()
-    .sort_values("Hour")
+    .sort_values("hour")
 )
 
 fig_hour = px.line(
-    hour_sales,
-    x="Hour",
-    y="Sales",
+    hour_revenue,
+    x="hour",
+    y="revenue",
     markers=True,
-    title="Sales Trend by Hour"
+    title="Revenue Trend by Hour"
 )
 
 fig_hour.update_layout(
@@ -242,66 +222,45 @@ st.plotly_chart(
 # PEAK HOUR
 # =========================================================
 
-if not hour_sales.empty:
+if not hour_revenue.empty:
 
-    peak_hour_row = hour_sales.loc[
-        hour_sales["Sales"].idxmax()
-    ]
-
-    lowest_hour_row = hour_sales.loc[
-        hour_sales["Sales"].idxmin()
+    peak_hour_row = hour_revenue.loc[
+        hour_revenue["revenue"].idxmax()
     ]
 
     peak_hour = int(
-        peak_hour_row["Hour"]
+        peak_hour_row["hour"]
     )
 
-    peak_sales = peak_hour_row["Sales"]
+    peak_revenue = peak_hour_row["revenue"]
 
-    lowest_hour = int(
-        lowest_hour_row["Hour"]
-    )
-
-    lowest_sales = lowest_hour_row["Sales"]
-
-    col1, col2 = st.columns(2)
-
-    col1.success(
-        f"🔥 Peak Sales Hour: {peak_hour}:00 "
-        f"(${peak_sales:,.2f})"
-    )
-
-    col2.info(
-        f"📉 Lowest Sales Hour: {lowest_hour}:00 "
-        f"(${lowest_sales:,.2f})"
+    st.success(
+        f"🔥 Peak revenue hour: {peak_hour}:00 "
+        f"with revenue of ${peak_revenue:,.2f}"
     )
 
 # =========================================================
 # TIME BUCKET ANALYSIS
 # =========================================================
 
-st.markdown("## 🕒 Time Bucket Analysis")
+st.markdown("## 🕒 Revenue by Time Bucket")
 
-bucket_sales = (
+bucket_revenue = (
     filtered_df
-    .groupby("Time Slot", as_index=False)
-    .agg(
-        Revenue=("Sales", "sum"),
-        Transactions=("transaction_id", "nunique"),
-        Quantity=("transaction_qty", "sum")
-    )
+    .groupby("time_bucket", as_index=False)["revenue"]
+    .sum()
     .sort_values(
-        "Revenue",
+        "revenue",
         ascending=False
     )
 )
 
 fig_bucket = px.bar(
-    bucket_sales,
-    x="Time Slot",
-    y="Revenue",
-    text_auto=".2s",
-    title="Revenue by Time Bucket"
+    bucket_revenue,
+    x="time_bucket",
+    y="revenue",
+    title="Revenue Performance by Time Bucket",
+    text_auto=".2s"
 )
 
 fig_bucket.update_layout(
@@ -315,31 +274,30 @@ st.plotly_chart(
 )
 
 # =========================================================
-# STORE ANALYSIS
+# STORE LOCATION ANALYSIS
 # =========================================================
 
-st.markdown("## 📍 Store Analysis")
+st.markdown("## 📍 Store Location Performance")
 
-store_sales = (
+store_revenue = (
     filtered_df
-    .groupby("store_location", as_index=False)
-    .agg(
-        Revenue=("Sales", "sum"),
-        Transactions=("transaction_id", "nunique"),
-        Quantity=("transaction_qty", "sum")
-    )
+    .groupby(
+        "store_location",
+        as_index=False
+    )["revenue"]
+    .sum()
     .sort_values(
-        "Revenue",
+        "revenue",
         ascending=False
     )
 )
 
 fig_store = px.bar(
-    store_sales,
+    store_revenue,
     x="store_location",
-    y="Revenue",
-    text_auto=".2s",
-    title="Revenue by Store Location"
+    y="revenue",
+    title="Revenue by Store Location",
+    text_auto=".2s"
 )
 
 fig_store.update_layout(
@@ -353,36 +311,29 @@ st.plotly_chart(
 )
 
 # =========================================================
-# CATEGORY ANALYSIS
+# PRODUCT CATEGORY ANALYSIS
 # =========================================================
 
-st.markdown("## 🥐 Category Analysis")
+st.markdown("## 🥐 Product Category Performance")
 
-category_sales = (
+category_revenue = (
     filtered_df
-    .groupby("product_category", as_index=False)
-    .agg(
-        Revenue=("Sales", "sum"),
-        Transactions=("transaction_id", "nunique"),
-        Quantity=("transaction_qty", "sum")
-    )
+    .groupby(
+        "product_category",
+        as_index=False
+    )["revenue"]
+    .sum()
     .sort_values(
-        "Revenue",
+        "revenue",
         ascending=False
     )
 )
 
-fig_category = px.bar(
-    category_sales,
-    x="product_category",
-    y="Revenue",
-    text_auto=".2s",
-    title="Revenue by Product Category"
-)
-
-fig_category.update_layout(
-    xaxis_title="Product Category",
-    yaxis_title="Revenue"
+fig_category = px.pie(
+    category_revenue,
+    names="product_category",
+    values="revenue",
+    title="Revenue Distribution by Product Category"
 )
 
 st.plotly_chart(
@@ -398,25 +349,25 @@ st.markdown("## 🏆 Top 10 Products")
 
 top_products = (
     filtered_df
-    .groupby("product_detail", as_index=False)
-    .agg(
-        Revenue=("Sales", "sum"),
-        Quantity=("transaction_qty", "sum")
-    )
+    .groupby(
+        "product_detail",
+        as_index=False
+    )["revenue"]
+    .sum()
     .sort_values(
-        "Revenue",
+        "revenue",
         ascending=False
     )
     .head(10)
 )
 
 fig_product = px.bar(
-    top_products.sort_values("Revenue"),
-    x="Revenue",
+    top_products.sort_values("revenue"),
+    x="revenue",
     y="product_detail",
     orientation="h",
-    text_auto=".2s",
-    title="Top 10 Products by Revenue"
+    title="Top 10 Products by Revenue",
+    text_auto=".2s"
 )
 
 fig_product.update_layout(
@@ -430,41 +381,7 @@ st.plotly_chart(
 )
 
 # =========================================================
-# STORE × HOUR ANALYSIS
-# =========================================================
-
-st.markdown("## 📍 Store × Hour Analysis")
-
-store_hour = (
-    filtered_df
-    .groupby(
-        ["store_location", "Hour"],
-        as_index=False
-    )["Sales"]
-    .sum()
-)
-
-fig_store_hour = px.bar(
-    store_hour,
-    x="Hour",
-    y="Sales",
-    color="store_location",
-    barmode="group",
-    title="Revenue by Store and Hour"
-)
-
-fig_store_hour.update_layout(
-    xaxis_title="Hour",
-    yaxis_title="Revenue"
-)
-
-st.plotly_chart(
-    fig_store_hour,
-    use_container_width=True
-)
-
-# =========================================================
-# STORE × TIME BUCKET
+# STORE × TIME BUCKET ANALYSIS
 # =========================================================
 
 st.markdown("## 📍 Store × Time Bucket Analysis")
@@ -472,19 +389,22 @@ st.markdown("## 📍 Store × Time Bucket Analysis")
 store_bucket = (
     filtered_df
     .groupby(
-        ["store_location", "Time Slot"],
+        [
+            "store_location",
+            "time_bucket"
+        ],
         as_index=False
-    )["Sales"]
+    )["revenue"]
     .sum()
 )
 
 fig_store_bucket = px.bar(
     store_bucket,
     x="store_location",
-    y="Sales",
-    color="Time Slot",
+    y="revenue",
+    color="time_bucket",
     barmode="group",
-    title="Revenue by Store and Time Bucket"
+    title="Revenue by Store Location and Time Bucket"
 )
 
 fig_store_bucket.update_layout(
@@ -498,28 +418,71 @@ st.plotly_chart(
 )
 
 # =========================================================
-# SUMMARY TABLE
+# TRANSACTION QUANTITY BY CATEGORY
 # =========================================================
 
-st.markdown("## 📋 Store Performance Summary")
+st.markdown("## 📦 Quantity Sold by Product Category")
 
-summary = (
+category_quantity = (
     filtered_df
-    .groupby("store_location", as_index=False)
-    .agg(
-        Revenue=("Sales", "sum"),
-        Transactions=("transaction_id", "nunique"),
-        Quantity=("transaction_qty", "sum")
+    .groupby(
+        "product_category",
+        as_index=False
+    )["transaction_qty"]
+    .sum()
+    .sort_values(
+        "transaction_qty",
+        ascending=False
     )
 )
 
-summary["Avg Revenue / Transaction"] = (
-    summary["Revenue"] /
-    summary["Transactions"]
+fig_quantity = px.bar(
+    category_quantity,
+    x="product_category",
+    y="transaction_qty",
+    title="Quantity Sold by Product Category",
+    text_auto=".2s"
 )
 
-st.dataframe(
-    summary,
+fig_quantity.update_layout(
+    xaxis_title="Product Category",
+    yaxis_title="Quantity Sold"
+)
+
+st.plotly_chart(
+    fig_quantity,
+    use_container_width=True
+)
+
+# =========================================================
+# TRANSACTIONS BY HOUR
+# =========================================================
+
+st.markdown("## 🧾 Transactions by Hour")
+
+hour_transactions = (
+    filtered_df
+    .groupby("hour")["transaction_id"]
+    .nunique()
+    .reset_index(name="transactions")
+    .sort_values("hour")
+)
+
+fig_transactions = px.bar(
+    hour_transactions,
+    x="hour",
+    y="transactions",
+    title="Number of Transactions by Hour",
+    text_auto=".2s"
+)
+
+fig_transactions.update_layout(
+    xaxis_title="Hour",
+    yaxis_title="Transactions"
+)
+
+st.plotly_chart(
+    fig_transactions,
     use_container_width=True
 )
 
